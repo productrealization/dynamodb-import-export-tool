@@ -14,6 +14,7 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.beust.jcommander.IValueValidator;
 import com.beust.jcommander.Parameter;
@@ -46,6 +47,14 @@ public class CommandLineArgs {
 
     public String getSourceTable() {
         return sourceTable;
+    }
+
+    public AWSCredentialsProvider getDestinationCredentialsProvider() {
+        return AWSCredentialsProviderType.valueOf(destinationCredentialsProviderType).getProvider();
+    }
+
+    public AWSCredentialsProvider getSourceCredentialsProvider() {
+        return AWSCredentialsProviderType.valueOf(sourceCredentialsProviderType).getProvider();
     }
 
     public static final String DESTINATION_ENDPOINT = "--destinationEndpoint";
@@ -112,13 +121,13 @@ public class CommandLineArgs {
         return consistentScan;
     }
 
-    public static final String SOURCE_CREDENTIAL_PROVIDER_TYPE = "--sourceCredentialProviderType";
-    @Parameter(names = SOURCE_CREDENTIAL_PROVIDER_TYPE, description = "AWS credential provider to use for source DynamoDb table. Available providers: default, profile, instance. Default value: default", required = false)
-    private String sourceCredentialProviderType = AWSCredentialProviderType.DEFAULT.name();
+    public static final String SOURCE_CREDENTIAL_PROVIDER_TYPE = "--sourceCredentialsProvider";
+    @Parameter(names = SOURCE_CREDENTIAL_PROVIDER_TYPE, description = "AWS credentials provider to use for source DynamoDb table. Available providers:  DEFAULT, INSTANCE, PROFILE", required = false, validateValueWith = AWSCredentialsProviderTypeValidator.class)
+    private String sourceCredentialsProviderType = AWSCredentialsProviderType.DEFAULT.name();
 
-    public static final String DESTINATION_CREDENTIAL_PROVIDER_TYPE = "--destinationCredentialProviderType";
-    @Parameter(names = DESTINATION_CREDENTIAL_PROVIDER_TYPE, description = "AWS credential provider to use for destination DynamoDb table. Available providers: default, profile, instance. Default value: default", required = false)
-    private String destinationCredentialProviderType = AWSCredentialProviderType.DEFAULT.name();
+    public static final String DESTINATION_CREDENTIAL_PROVIDER_TYPE = "--destinationCredentialsProvider";
+    @Parameter(names = DESTINATION_CREDENTIAL_PROVIDER_TYPE, description = "AWS credential provider to use for destination DynamoDb table. Available providers: DEFAULT, INSTANCE, PROFILE", required = false, validateValueWith = AWSCredentialsProviderTypeValidator.class)
+    private String destinationCredentialsProviderType = AWSCredentialsProviderType.DEFAULT.name();
 
     public static class AWSCredentialsProviderTypeValidator implements IValueValidator
     {
@@ -127,11 +136,11 @@ public class CommandLineArgs {
         {
             try
             {
-                AWSCredentialProviderType.valueOf((String) value);
+                AWSCredentialsProviderType.valueOf((String) value);
             }
             catch (Exception ex)
             {
-                throw new ParameterException("Invalid ", ex);
+                throw new ParameterException("Invalid AWS credential provider type: " + value, ex);
             }
         }
     }

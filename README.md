@@ -38,6 +38,10 @@ java -jar dynamodb-import-export-tool.jar
 
 --consistentScan <boolean> // (Optional, default=false) indicates whether consistent scan should be used when reading from the source table.
 
+--sourceCredentialsProvider // (Optional, default=DEFAULT) AWS credentials provider to use for source DynamoDb table. Available providers:  DEFAULT, INSTANCE, PROFILE.
+
+--destinationCredentialsProvider // (Optional, default=DEFAULT) AWS credentials provider to use for destination DynamoDb table. Available providers:  DEFAULT, INSTANCE, PROFILE.
+
 > **NOTE**: To split the replication process across multiple machines, simply use the totalSections & section command line arguments, where each machine will run one section out of [0 ... totalSections-1].
 
 ## Using the API

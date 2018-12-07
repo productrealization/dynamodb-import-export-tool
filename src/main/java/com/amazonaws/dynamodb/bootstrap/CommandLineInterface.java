@@ -20,11 +20,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.amazonaws.auth.AWSCredentialsProvider;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
 import com.amazonaws.ClientConfiguration;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.dynamodb.bootstrap.exception.NullReadCapacityException;
 import com.amazonaws.dynamodb.bootstrap.exception.SectionOutOfRangeException;
@@ -74,6 +74,9 @@ public class CommandLineInterface {
         final String destinationEndpoint = params.getDestinationEndpoint();
         final String destinationTable = params.getDestinationTable();
         final String sourceTable = params.getSourceTable();
+        final AWSCredentialsProvider sourceCredentialProvider = params.getSourceCredentialsProvider();
+        final AWSCredentialsProvider destinationCredentialProvider = params.getDestinationCredentialsProvider();
+
         final double readThroughputRatio = params.getReadThroughputRatio();
         final double writeThroughputRatio = params.getWriteThroughputRatio();
         final int maxWriteThreads = params.getMaxWriteThreads();
@@ -83,9 +86,9 @@ public class CommandLineInterface {
         final ClientConfiguration destinationConfig = new ClientConfiguration().withMaxConnections(BootstrapConstants.MAX_CONN_SIZE);
 
         final AmazonDynamoDBClient sourceClient = new AmazonDynamoDBClient(
-                new DefaultAWSCredentialsProviderChain(), sourceConfig);
+                sourceCredentialProvider, sourceConfig);
         final AmazonDynamoDBClient destinationClient = new AmazonDynamoDBClient(
-                new DefaultAWSCredentialsProviderChain(), destinationConfig);
+                destinationCredentialProvider, destinationConfig);
         sourceClient.setEndpoint(sourceEndpoint);
         destinationClient.setEndpoint(destinationEndpoint);
 
