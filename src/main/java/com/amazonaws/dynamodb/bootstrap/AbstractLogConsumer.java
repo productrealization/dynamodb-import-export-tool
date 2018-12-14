@@ -32,6 +32,8 @@ public abstract class AbstractLogConsumer {
 
     public ExecutorCompletionService<Void> exec;
     protected ExecutorService threadPool;
+    protected int totalBatchesSubmitted = 0;
+    protected int totalItemsSubmitted = 0;
 
     /**
      * Logger for the DynamoDBBootstrapWorker.
@@ -58,6 +60,8 @@ public abstract class AbstractLogConsumer {
      *            finishing their current tasks.
      */
     public void shutdown(boolean awaitTermination) {
+        LOGGER.info(String.format("%s total batches written", totalBatchesSubmitted));
+        LOGGER.info(String.format("%s total items written", totalItemsSubmitted));
         if (awaitTermination) {
             boolean interrupted = false;
             threadPool.shutdown();

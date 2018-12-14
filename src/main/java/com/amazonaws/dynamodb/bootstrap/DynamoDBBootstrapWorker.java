@@ -26,6 +26,8 @@ import com.amazonaws.services.dynamodbv2.model.ProvisionedThroughputDescription;
 import com.amazonaws.services.dynamodbv2.model.ReturnConsumedCapacity;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.TableDescription;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * The base class to start a parallel scan and connect the results with a
@@ -39,6 +41,9 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
     private int section;
     private int totalSections;
     private final boolean consistentScan;
+
+    private static final Logger LOGGER = LogManager
+            .getLogger(DynamoDBBootstrapWorker.class);
 
     /**
      * Creates the DynamoDBBootstrapWorker, calculates the number of segments a
@@ -100,6 +105,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
      */
     public void pipe(final AbstractLogConsumer consumer)
             throws ExecutionException, InterruptedException {
+        int totalItemsScanned = 0;
         final DynamoDBTableScan scanner = new DynamoDBTableScan(rateLimit,
                 client);
 
@@ -114,8 +120,11 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
 
         while (!scanService.finished()) {
             SegmentedScanResult result = scanService.grab();
+            totalItemsScanned += result.getScanResult().getCount();
             consumer.writeResult(result);
         }
+
+        LOGGER.info(String.format("%s items scanned", totalItemsScanned));
 
         shutdown(true);
         consumer.shutdown(true);

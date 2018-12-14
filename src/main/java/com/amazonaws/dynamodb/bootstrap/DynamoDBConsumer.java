@@ -31,6 +31,8 @@ import com.amazonaws.services.dynamodbv2.model.ReturnConsumedCapacity;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import com.google.common.util.concurrent.RateLimiter;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * Takes in SegmentedScanResults and launches several DynamoDBConsumerWorker for
@@ -41,6 +43,9 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
     private final AmazonDynamoDBClient client;
     private final String tableName;
     private final RateLimiter rateLimiter;
+
+    private static final Logger LOGGER = LogManager
+            .getLogger(DynamoDBConsumer.class);
 
     /**
      * Class to consume logs and write them to a DynamoDB table.
@@ -65,16 +70,24 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
         List<BatchWriteItemRequest> batches = splitResultIntoBatches(
                 result.getScanResult(), tableName);
         Iterator<BatchWriteItemRequest> batchesIterator = batches.iterator();
+        int batchesSubmitted = 0;
+        int totalItemsSubmittedInCurrentBatch = 0;
         while (batchesIterator.hasNext()) {
             try {
+                final BatchWriteItemRequest itemRequest = batchesIterator.next();
+                totalItemsSubmittedInCurrentBatch += itemRequest.getRequestItems().size();
                 jobSubmission = exec
-                        .submit(new DynamoDBConsumerWorker(batchesIterator
-                                .next(), client, rateLimiter, tableName));
+                        .submit(new DynamoDBConsumerWorker(itemRequest, client, rateLimiter, tableName));
+                batchesSubmitted++;
             } catch (NullPointerException npe) {
                 throw new NullPointerException(
                         "Thread pool not initialized for LogStashExecutor");
             }
         }
+        LOGGER.debug(String.format("%s batches submitted", batchesSubmitted));
+        totalBatchesSubmitted += batchesSubmitted;
+        LOGGER.debug(String.format("%s items submitted", totalItemsSubmittedInCurrentBatch));
+        totalItemsSubmitted += totalItemsSubmittedInCurrentBatch;
         return jobSubmission;
     }
 
@@ -109,6 +122,7 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
             req.addRequestItemsEntry(tableName, writeRequests);
             batches.add(req);
         }
+        LOGGER.info(String.format("%s batches created.", batches.size()));
         return batches;
     }
 }
