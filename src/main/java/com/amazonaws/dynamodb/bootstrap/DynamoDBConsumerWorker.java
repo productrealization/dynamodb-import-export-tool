@@ -27,6 +27,8 @@ import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
 import com.amazonaws.services.dynamodbv2.model.ConsumedCapacity;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import com.google.common.util.concurrent.RateLimiter;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * Callable class that is used to write a batch of items to DynamoDB with exponential backoff.
@@ -38,6 +40,9 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
     private long exponentialBackoffTime;
     private BatchWriteItemRequest batch;
     private final String tableName;
+
+    private static final Logger LOGGER = LogManager
+            .getLogger(DynamoDBConsumerWorker.class);
 
     /**
      * Callable class that when called will try to write a batch to a DynamoDB
@@ -76,6 +81,7 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
      * backoff and retry the unprocessed items.
      */
     public List<ConsumedCapacity> runWithBackoff(BatchWriteItemRequest req) {
+        final int initalBatchSize = req.getRequestItems().size();
         BatchWriteItemResult writeItemResult = null;
         List<ConsumedCapacity> consumedCapacities = new LinkedList<ConsumedCapacity>();
         Map<String, List<WriteRequest>> unprocessedItems = null;
@@ -88,6 +94,7 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
                         .addAll(writeItemResult.getConsumedCapacity());
 
                 if (unprocessedItems != null) {
+                    LOGGER.warn(String.format(" %s unprocessed items from batch of size %s, retrying", unprocessedItems.size(), initalBatchSize));
                     req.setRequestItems(unprocessedItems);
                     try {
                         Thread.sleep(exponentialBackoffTime);
