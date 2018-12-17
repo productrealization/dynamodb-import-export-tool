@@ -22,6 +22,8 @@ import com.amazonaws.services.dynamodbv2.model.ConsumedCapacity;
 import com.amazonaws.services.dynamodbv2.model.ScanRequest;
 import com.amazonaws.services.dynamodbv2.model.ScanResult;
 import com.google.common.util.concurrent.RateLimiter;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 
 /**
  * This class executes multiple scan requests on one segment of a table in
@@ -36,6 +38,9 @@ public class ScanSegmentWorker implements Callable<SegmentedScanResult> {
     private long exponentialBackoffTime;
     private final AmazonDynamoDBClient client;
     private final RateLimiter rateLimiter;
+
+    private static final Logger LOGGER = LogManager
+            .getLogger(ScanSegmentWorker.class);
 
     ScanSegmentWorker(final AmazonDynamoDBClient client,
             final RateLimiter rateLimiter, ScanRequest request) {
@@ -99,6 +104,7 @@ public class ScanSegmentWorker implements Callable<SegmentedScanResult> {
                     try {
                         Thread.sleep(exponentialBackoffTime);
                     } catch (InterruptedException ie) {
+                        LOGGER.error("Interrupted when scanning table with backoff");
                         interrupted = true;
                     } finally {
                         exponentialBackoffTime *= 2;

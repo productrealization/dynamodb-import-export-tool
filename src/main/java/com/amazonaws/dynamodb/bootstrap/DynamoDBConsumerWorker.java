@@ -99,6 +99,7 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
                     try {
                         Thread.sleep(exponentialBackoffTime);
                     } catch (InterruptedException ie) {
+                        LOGGER.error("Interrupted when waiting to write failed batch items");
                         interrupted = true;
                     } finally {
                         exponentialBackoffTime *= 2;
