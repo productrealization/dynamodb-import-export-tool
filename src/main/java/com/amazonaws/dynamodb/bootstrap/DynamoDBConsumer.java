@@ -14,10 +14,7 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -75,7 +72,7 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
         while (batchesIterator.hasNext()) {
             try {
                 final BatchWriteItemRequest itemRequest = batchesIterator.next();
-                totalItemsSubmittedInCurrentBatch += itemRequest.getRequestItems().size();
+                totalItemsSubmittedInCurrentBatch += itemRequest.getRequestItems().values().stream().mapToInt(List::size).sum();
                 jobSubmission = exec
                         .submit(new DynamoDBConsumerWorker(itemRequest, client, rateLimiter, tableName));
                 batchesSubmitted++;
