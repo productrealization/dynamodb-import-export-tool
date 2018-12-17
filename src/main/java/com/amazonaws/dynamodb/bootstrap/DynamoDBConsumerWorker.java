@@ -94,7 +94,10 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
                         .addAll(writeItemResult.getConsumedCapacity());
 
                 if (unprocessedItems != null) {
-                    LOGGER.warn(String.format(" %s unprocessed items from batch of size %s, retrying", unprocessedItems.size(), initalBatchSize));
+                    if (unprocessedItems.isEmpty()) {
+                        LOGGER.warn(String.format(" %s unprocessed items from batch of size %s, retrying",
+                                unprocessedItems.size(), initalBatchSize));
+                    }
                     req.setRequestItems(unprocessedItems);
                     try {
                         Thread.sleep(exponentialBackoffTime);
