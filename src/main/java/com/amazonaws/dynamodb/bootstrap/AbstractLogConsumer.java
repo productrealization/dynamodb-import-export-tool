@@ -18,6 +18,7 @@ import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -34,6 +35,7 @@ public abstract class AbstractLogConsumer {
     protected ExecutorService threadPool;
     protected int totalBatchesSubmitted = 0;
     protected int totalItemsSubmitted = 0;
+    protected final AtomicInteger totalItemsWritten = new AtomicInteger(0);
 
     /**
      * Logger for the DynamoDBBootstrapWorker.
@@ -60,8 +62,6 @@ public abstract class AbstractLogConsumer {
      *            finishing their current tasks.
      */
     public void shutdown(boolean awaitTermination) {
-        LOGGER.info(String.format("%s total batches written", totalBatchesSubmitted));
-        LOGGER.info(String.format("%s total items written", totalItemsSubmitted));
         if (awaitTermination) {
             boolean interrupted = false;
             threadPool.shutdown();
@@ -80,5 +80,8 @@ public abstract class AbstractLogConsumer {
         } else {
             threadPool.shutdownNow();
         }
+        LOGGER.info(String.format("%s total batches written", totalBatchesSubmitted));
+        LOGGER.info(String.format("%s total items submitted", totalItemsSubmitted));
+        LOGGER.info(String.format("%s total items written", totalItemsWritten.get()));
     }
 }

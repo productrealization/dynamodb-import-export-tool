@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
@@ -40,6 +41,7 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
     private long exponentialBackoffTime;
     private BatchWriteItemRequest batch;
     private final String tableName;
+    private final AtomicInteger totalItemsWritten;
 
     private static final Logger LOGGER = LogManager
             .getLogger(DynamoDBConsumerWorker.class);
@@ -50,13 +52,15 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
      * off until it succeeds.
      */
     public DynamoDBConsumerWorker(BatchWriteItemRequest batchWriteItemRequest,
-            AmazonDynamoDBClient client, RateLimiter rateLimiter,
-            String tableName) {
+                                  AmazonDynamoDBClient client, RateLimiter rateLimiter,
+                                  String tableName,
+                                  final AtomicInteger totalItemsWritten) {
         this.batch = batchWriteItemRequest;
         this.client = client;
         this.rateLimiter = rateLimiter;
         this.tableName = tableName;
         this.exponentialBackoffTime = BootstrapConstants.INITIAL_RETRY_TIME_MILLISECONDS;
+        this.totalItemsWritten = totalItemsWritten;
     }
 
     /**
@@ -81,11 +85,12 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
      * backoff and retry the unprocessed items.
      */
     public List<ConsumedCapacity> runWithBackoff(BatchWriteItemRequest req) {
-        final int initalBatchSize = req.getRequestItems().size();
+        final int initalBatchSize = req.getRequestItems().values().size();
         BatchWriteItemResult writeItemResult = null;
         List<ConsumedCapacity> consumedCapacities = new LinkedList<ConsumedCapacity>();
         Map<String, List<WriteRequest>> unprocessedItems = null;
         boolean interrupted = false;
+        boolean firstAttempt = true;
         try {
             do {
                 writeItemResult = client.batchWriteItem(req);
@@ -94,9 +99,18 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
                         .addAll(writeItemResult.getConsumedCapacity());
 
                 if (unprocessedItems != null) {
+                    if (firstAttempt)
+                    {
+                        totalItemsWritten.addAndGet(initalBatchSize - unprocessedItems.values().size());
+                        firstAttempt = false;
+                    }
+                    else
+                    {
+                        totalItemsWritten.addAndGet(req.getRequestItems().values().size() - unprocessedItems.values().size());
+                    }
                     if (!unprocessedItems.isEmpty()) {
                         LOGGER.warn(String.format(" %s unprocessed items from batch of size %s, retrying",
-                                unprocessedItems.size(), initalBatchSize));
+                                unprocessedItems.values().size(), initalBatchSize));
                     }
                     req.setRequestItems(unprocessedItems);
                     try {

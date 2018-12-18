@@ -74,7 +74,7 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
                 final BatchWriteItemRequest itemRequest = batchesIterator.next();
                 totalItemsSubmittedInCurrentBatch += itemRequest.getRequestItems().values().stream().mapToInt(List::size).sum();
                 jobSubmission = exec
-                        .submit(new DynamoDBConsumerWorker(itemRequest, client, rateLimiter, tableName));
+                        .submit(new DynamoDBConsumerWorker(itemRequest, client, rateLimiter, tableName, totalItemsWritten));
                 batchesSubmitted++;
             } catch (NullPointerException npe) {
                 throw new NullPointerException(

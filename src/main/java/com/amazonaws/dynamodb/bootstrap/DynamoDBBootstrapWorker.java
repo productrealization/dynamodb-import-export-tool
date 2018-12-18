@@ -124,7 +124,7 @@ public class DynamoDBBootstrapWorker extends AbstractLogProvider {
             consumer.writeResult(result);
         }
 
-        LOGGER.info(String.format("%s items scanned", totalItemsScanned));
+        LOGGER.info(String.format("%s total items scanned", totalItemsScanned));
 
         shutdown(true);
         consumer.shutdown(true);
