@@ -18,6 +18,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -88,6 +89,7 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
      */
     public List<ConsumedCapacity> runWithBackoff(BatchWriteItemRequest req) {
         BatchWriteItemResult writeItemResult = null;
+        final String requestId = UUID.randomUUID().toString();
         List<ConsumedCapacity> consumedCapacities = new LinkedList<ConsumedCapacity>();
         boolean interrupted = false;
         int retries = 0;
@@ -106,15 +108,16 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
 
                     retries++;
 
-                    LOGGER.warn(String.format("%s unprocessed items from batch of size %s, retry %s. Items cnfFingerprints: [%s]",
-                            unprocessedRequests.size(), writeRequests.size(), retries, formatRequests(unprocessedRequests)));
+                    LOGGER.warn(String.format("Request ID: %s. %s unprocessed items from batch of size %s, retry %s.",
+                            requestId, unprocessedRequests.size(), writeRequests.size(), retries));
+                    LOGGER.debug(String.format("Items cnfFingerprints: [%s]", formatRequests(unprocessedRequests)));
 
                     req.setRequestItems(unprocessedItems);
 
                     try {
                         Thread.sleep(exponentialBackoffTime);
                     } catch (InterruptedException ie) {
-                        LOGGER.error("Interrupted when waiting to write failed batch items");
+                        LOGGER.error(String.format("Request ID: %s. Interrupted when waiting to write failed batch items", requestId));
                         interrupted = true;
                     } finally {
                         exponentialBackoffTime *= 2;
@@ -125,7 +128,8 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
                 } else {
                     totalItemsWritten.addAndGet(writeRequests.size());
                     if (retries > 0) {
-                        LOGGER.info(String.format("Successful after %s retries. Items cnfFingerprints: [%s]", retries, formatRequests(writeRequests)));
+                        LOGGER.info(String.format("Request ID: %s. Successful after %s retries.", requestId, retries));
+                        LOGGER.debug(String.format("Items cnfFingerprints: [%s]", formatRequests(writeRequests)));
                     }
                 }
             } while (notAllProcessed(writeItemResult));
