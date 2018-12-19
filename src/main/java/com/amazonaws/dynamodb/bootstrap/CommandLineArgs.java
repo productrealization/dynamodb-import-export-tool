@@ -130,7 +130,7 @@ public class CommandLineArgs {
     private String destinationCredentialsProviderType = AWSCredentialsProviderType.DEFAULT.name();
 
     public static final String SOURCE_PROFILE = "--sourceProfile";
-    @Parameter(names = SOURCE_PROFILE, description = "AWS profile to use when reading", required = false, validateValueWith = AWSCredentialsProviderTypeValidator.class)
+    @Parameter(names = SOURCE_PROFILE, description = "AWS profile to use when reading", required = false)
     private String sourceProfile = "default";
 
     public String getSourceProfile() {
@@ -138,7 +138,7 @@ public class CommandLineArgs {
     }
 
     public static final String DESTINATION_PROFILE = "--destinationProfile";
-    @Parameter(names = DESTINATION_PROFILE, description = "AWS profile to use when writing", required = false, validateValueWith = AWSCredentialsProviderTypeValidator.class)
+    @Parameter(names = DESTINATION_PROFILE, description = "AWS profile to use when writing", required = false)
     private String destinationProfile = "default";
 
     public String getDestinationProfile() {
