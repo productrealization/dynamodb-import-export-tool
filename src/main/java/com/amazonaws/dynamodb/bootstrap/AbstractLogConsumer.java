@@ -14,12 +14,15 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -36,6 +39,7 @@ public abstract class AbstractLogConsumer {
     protected int totalBatchesSubmitted = 0;
     protected int totalItemsSubmitted = 0;
     protected final AtomicInteger totalItemsWritten = new AtomicInteger(0);
+    protected final ConcurrentHashMap<String, List<WriteRequest>> failedItems = new ConcurrentHashMap<>();
 
     /**
      * Logger for the DynamoDBBootstrapWorker.

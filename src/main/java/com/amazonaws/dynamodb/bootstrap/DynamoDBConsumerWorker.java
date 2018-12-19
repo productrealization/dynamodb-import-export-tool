@@ -14,12 +14,14 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -45,6 +47,7 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
     private BatchWriteItemRequest batch;
     private final String tableName;
     private final AtomicInteger totalItemsWritten;
+    private final ConcurrentHashMap<String, List<WriteRequest>> failedItems;
 
     private static final Logger LOGGER = LogManager
             .getLogger(DynamoDBConsumerWorker.class);
@@ -57,13 +60,15 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
     public DynamoDBConsumerWorker(BatchWriteItemRequest batchWriteItemRequest,
                                   AmazonDynamoDBClient client, RateLimiter rateLimiter,
                                   String tableName,
-                                  final AtomicInteger totalItemsWritten) {
+                                  final AtomicInteger totalItemsWritten,
+                                  final ConcurrentHashMap<String, List<WriteRequest>> failedItems) {
         this.batch = batchWriteItemRequest;
         this.client = client;
         this.rateLimiter = rateLimiter;
         this.tableName = tableName;
         this.exponentialBackoffTime = BootstrapConstants.INITIAL_RETRY_TIME_MILLISECONDS;
         this.totalItemsWritten = totalItemsWritten;
+        this.failedItems = failedItems;
     }
 
     /**
@@ -108,9 +113,10 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
 
                     retries++;
 
-                    LOGGER.warn(String.format("Request ID: %s. %s unprocessed items from batch of size %s, retry %s.",
+                    LOGGER.info(String.format("Request ID: %s. %s unprocessed items from batch of size %s, retry %s.",
                             requestId, unprocessedRequests.size(), writeRequests.size(), retries));
-                    LOGGER.debug(String.format("Request ID: %s. Items cnfFingerprints: [%s]", requestId, formatRequests(unprocessedRequests)));
+                    failedItems.put(requestId, unprocessedRequests);
+//                    LOGGER.info(String.format("Request ID: %s. Items cnfFingerprints: [%s]", requestId, formatRequests(unprocessedRequests)));
 
                     req.setRequestItems(unprocessedItems);
 
@@ -129,6 +135,7 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
                     totalItemsWritten.addAndGet(writeRequests.size());
                     if (retries > 0) {
                         LOGGER.info(String.format("Request ID: %s. Successful after %s retries.", requestId, retries));
+                        failedItems.remove(requestId);
                     }
                 }
             } while (notAllProcessed(writeItemResult));

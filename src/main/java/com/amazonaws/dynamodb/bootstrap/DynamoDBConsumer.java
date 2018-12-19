@@ -18,6 +18,7 @@ import java.util.*;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
@@ -74,8 +75,9 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
                 final BatchWriteItemRequest itemRequest = batchesIterator.next();
                 totalItemsSubmittedInCurrentBatch += itemRequest.getRequestItems().values().stream().mapToInt(List::size).sum();
                 jobSubmission = exec
-                        .submit(new DynamoDBConsumerWorker(itemRequest, client, rateLimiter, tableName, totalItemsWritten));
+                        .submit(new DynamoDBConsumerWorker(itemRequest, client, rateLimiter, tableName, totalItemsWritten, failedItems));
                 batchesSubmitted++;
+                LOGGER.info(String.format("Failed items: %s", failedItems.values().stream().flatMap(Collection::stream).collect(Collectors.toList())));
             } catch (NullPointerException npe) {
                 throw new NullPointerException(
                         "Thread pool not initialized for LogStashExecutor");
