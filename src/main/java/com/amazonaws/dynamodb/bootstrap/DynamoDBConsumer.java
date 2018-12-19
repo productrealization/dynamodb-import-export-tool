@@ -119,7 +119,7 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
             req.addRequestItemsEntry(tableName, writeRequests);
             batches.add(req);
         }
-        LOGGER.info(String.format("%s batches created.", batches.size()));
+        LOGGER.debug(String.format("%s batches created.", batches.size()));
         return batches;
     }
 }

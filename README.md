@@ -42,6 +42,10 @@ java -jar dynamodb-import-export-tool.jar
 
 --destinationCredentialsProvider // (Optional, default=DEFAULT) AWS credentials provider to use for destination DynamoDb table. Available providers:  DEFAULT, INSTANCE, PROFILE.
 
+--sourceProfile // (Optional, default=default) AWS profile to use for source DynamoDb table.
+
+--destinationProfile // (Optional, default=default) AWS profile to use for destination DynamoDb table.
+
 > **NOTE**: To split the replication process across multiple machines, simply use the totalSections & section command line arguments, where each machine will run one section out of [0 ... totalSections-1].
 
 ## Using the API

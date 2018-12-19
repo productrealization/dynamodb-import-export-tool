@@ -20,12 +20,14 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
 import com.amazonaws.services.dynamodbv2.model.ConsumedCapacity;
+import com.amazonaws.services.dynamodbv2.model.PutRequest;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import com.google.common.util.concurrent.RateLimiter;
 import org.apache.log4j.LogManager;
@@ -85,34 +87,30 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
      * backoff and retry the unprocessed items.
      */
     public List<ConsumedCapacity> runWithBackoff(BatchWriteItemRequest req) {
-        final int initalBatchSize = req.getRequestItems().values().size();
         BatchWriteItemResult writeItemResult = null;
         List<ConsumedCapacity> consumedCapacities = new LinkedList<ConsumedCapacity>();
-        Map<String, List<WriteRequest>> unprocessedItems = null;
         boolean interrupted = false;
-        boolean firstAttempt = true;
+        int retries = 0;
         try {
             do {
                 writeItemResult = client.batchWriteItem(req);
-                unprocessedItems = writeItemResult.getUnprocessedItems();
+                final List<WriteRequest> writeRequests = req.getRequestItems().get(tableName);
                 consumedCapacities
                         .addAll(writeItemResult.getConsumedCapacity());
 
-                if (unprocessedItems != null) {
-                    if (firstAttempt)
-                    {
-                        totalItemsWritten.addAndGet(initalBatchSize - unprocessedItems.values().size());
-                        firstAttempt = false;
-                    }
-                    else
-                    {
-                        totalItemsWritten.addAndGet(req.getRequestItems().values().size() - unprocessedItems.values().size());
-                    }
-                    if (!unprocessedItems.isEmpty()) {
-                        LOGGER.warn(String.format(" %s unprocessed items from batch of size %s, retrying",
-                                unprocessedItems.values().size(), initalBatchSize));
-                    }
+                if (notAllProcessed(writeItemResult)) {
+                    final Map<String, List<WriteRequest>> unprocessedItems = writeItemResult.getUnprocessedItems();
+                    final List<WriteRequest> unprocessedRequests = unprocessedItems.get(tableName);
+
+                    totalItemsWritten.addAndGet(writeRequests.size() - unprocessedRequests.size());
+
+                    retries++;
+
+                    LOGGER.warn(String.format("%s unprocessed items from batch of size %s, retry %s. Items cnfFingerprints: [%s]",
+                            unprocessedRequests.size(), writeRequests.size(), retries, formatRequests(unprocessedRequests)));
+
                     req.setRequestItems(unprocessedItems);
+
                     try {
                         Thread.sleep(exponentialBackoffTime);
                     } catch (InterruptedException ie) {
@@ -124,13 +122,31 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
                             exponentialBackoffTime = BootstrapConstants.MAX_EXPONENTIAL_BACKOFF_TIME;
                         }
                     }
+                } else {
+                    totalItemsWritten.addAndGet(writeRequests.size());
+                    if (retries > 0) {
+                        LOGGER.info(String.format("Successful after %s retries. Items cnfFingerprints: [%s]", retries, formatRequests(writeRequests)));
+                    }
                 }
-            } while (unprocessedItems != null && unprocessedItems.get(tableName) != null);
+            } while (notAllProcessed(writeItemResult));
             return consumedCapacities;
         } finally {
             if (interrupted) {
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    private String formatRequests(List<WriteRequest> requests) {
+        return requests.stream()
+                .map(WriteRequest::getPutRequest)
+                .map(PutRequest::getItem)
+                .map(item -> item.get("cnfFingerprint").getS())
+                .collect(Collectors.joining(", "));
+    }
+
+    private boolean notAllProcessed(BatchWriteItemResult result) {
+        final Map<String, List<WriteRequest>> unprocessedItems = result.getUnprocessedItems();
+        return unprocessedItems != null && unprocessedItems.get(tableName) != null;
     }
 }

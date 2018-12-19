@@ -21,6 +21,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import com.amazonaws.auth.AWSCredentialsProvider;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
 
@@ -74,8 +75,8 @@ public class CommandLineInterface {
         final String destinationEndpoint = params.getDestinationEndpoint();
         final String destinationTable = params.getDestinationTable();
         final String sourceTable = params.getSourceTable();
-        final AWSCredentialsProvider sourceCredentialProvider = params.getSourceCredentialsProvider();
-        final AWSCredentialsProvider destinationCredentialProvider = params.getDestinationCredentialsProvider();
+        final AWSCredentialsProvider sourceCredentialProvider = getSourceCredentialsProvider(params);
+        final AWSCredentialsProvider destinationCredentialProvider = getDestinationCredentialsProvider(params);
 
         final double readThroughputRatio = params.getReadThroughputRatio();
         final double writeThroughputRatio = params.getWriteThroughputRatio();
@@ -131,6 +132,22 @@ public class CommandLineInterface {
         } catch (SectionOutOfRangeException e) {
             LOGGER.error("Invalid section parameter", e);
         }
+    }
+
+    private static AWSCredentialsProvider getSourceCredentialsProvider(CommandLineArgs params) {
+        if (params.getSourceCredentialsProvider() instanceof ProfileCredentialsProvider) {
+            return new ProfileCredentialsProvider(params.getSourceProfile());
+        }
+
+        return params.getSourceCredentialsProvider();
+    }
+
+    private static AWSCredentialsProvider getDestinationCredentialsProvider(CommandLineArgs params) {
+        if (params.getDestinationCredentialsProvider() instanceof ProfileCredentialsProvider) {
+            return new ProfileCredentialsProvider(params.getDestinationProfile());
+        }
+
+        return params.getDestinationCredentialsProvider();
     }
 
     /**

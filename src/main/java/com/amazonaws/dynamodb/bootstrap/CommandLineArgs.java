@@ -129,6 +129,22 @@ public class CommandLineArgs {
     @Parameter(names = DESTINATION_CREDENTIAL_PROVIDER_TYPE, description = "AWS credential provider to use for destination DynamoDb table. Available providers: DEFAULT, INSTANCE, PROFILE", required = false, validateValueWith = AWSCredentialsProviderTypeValidator.class)
     private String destinationCredentialsProviderType = AWSCredentialsProviderType.DEFAULT.name();
 
+    public static final String SOURCE_PROFILE = "--sourceProfile";
+    @Parameter(names = SOURCE_PROFILE, description = "AWS profile to use when reading", required = false, validateValueWith = AWSCredentialsProviderTypeValidator.class)
+    private String sourceProfile = "default";
+
+    public String getSourceProfile() {
+        return sourceProfile;
+    }
+
+    public static final String DESTINATION_PROFILE = "--destinationProfile";
+    @Parameter(names = DESTINATION_PROFILE, description = "AWS profile to use when writing", required = false, validateValueWith = AWSCredentialsProviderTypeValidator.class)
+    private String destinationProfile = "default";
+
+    public String getDestinationProfile() {
+        return destinationProfile;
+    }
+
     public static class AWSCredentialsProviderTypeValidator implements IValueValidator
     {
         @Override
