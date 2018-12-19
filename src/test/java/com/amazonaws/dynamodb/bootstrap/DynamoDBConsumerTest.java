@@ -66,7 +66,7 @@ public class DynamoDBConsumerTest {
 
         replayAll();
         List<BatchWriteItemRequest> batches = DynamoDBConsumer
-                .splitResultIntoBatches(result.getScanResult(), tableName);
+                .splitResultIntoBatches(result.getScanResult().getItems(), tableName);
         assertEquals(Math.ceil(numItems / BootstrapConstants.MAX_BATCH_SIZE_WRITE_ITEM),
                 batches.size(), 0.0);
 

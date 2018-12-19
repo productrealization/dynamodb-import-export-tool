@@ -15,9 +15,11 @@
 package com.amazonaws.dynamodb.bootstrap;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
@@ -66,7 +68,7 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
     public Future<Void> writeResult(SegmentedScanResult result) {
         Future<Void> jobSubmission = null;
         List<BatchWriteItemRequest> batches = splitResultIntoBatches(
-                result.getScanResult(), tableName);
+                result.getScanResult().getItems(), tableName);
         Iterator<BatchWriteItemRequest> batchesIterator = batches.iterator();
         int batchesSubmitted = 0;
         int totalItemsSubmittedInCurrentBatch = 0;
@@ -77,7 +79,7 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
                 jobSubmission = exec
                         .submit(new DynamoDBConsumerWorker(itemRequest, client, rateLimiter, tableName, totalItemsWritten, failedItems));
                 batchesSubmitted++;
-                LOGGER.info(String.format("Failed items: %s", failedItems.values().stream().flatMap(Collection::stream).collect(Collectors.toList())));
+                LOGGER.info(String.format("Failed items: %s", failedItems.values().stream().mapToLong(Collection::size).sum()));
             } catch (NullPointerException npe) {
                 throw new NullPointerException(
                         "Thread pool not initialized for LogStashExecutor");
@@ -90,14 +92,31 @@ public class DynamoDBConsumer extends AbstractLogConsumer {
         return jobSubmission;
     }
 
+    @Override
+    protected void putFailedItems(List<WriteRequest> failedRequests) {
+        final List<Map<String, AttributeValue>> items = failedRequests.stream().map(WriteRequest::getPutRequest).map(PutRequest::getItem).collect(Collectors.toList());
+
+        List<BatchWriteItemRequest> batches = splitResultIntoBatches(items, tableName);
+        final AtomicInteger totalItemsWritten = new AtomicInteger(0);
+        final ConcurrentHashMap<String, List<WriteRequest>> failedItems = new ConcurrentHashMap<>();
+        for (BatchWriteItemRequest batch : batches) {
+            new DynamoDBConsumerWorker(batch, client, rateLimiter, tableName, totalItemsWritten, failedItems).call();
+        }
+
+        LOGGER.info(String.format("%s total items written", totalItemsWritten.get()));
+        final List<WriteRequest> newFailedRequests = failedItems.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        final String failedItemsStr = newFailedRequests.stream().map(this::formatRequests).collect(Collectors.joining(", "));
+        LOGGER.info(String.format("Failed items: %s", failedItemsStr));
+    }
+
     /**
      * Splits up a ScanResult into a list of BatchWriteItemRequests of size 25
      * items or less each.
      */
     public static List<BatchWriteItemRequest> splitResultIntoBatches(
-            ScanResult result, String tableName) {
+            List<Map<String, AttributeValue>> items, String tableName) {
         List<BatchWriteItemRequest> batches = new LinkedList<BatchWriteItemRequest>();
-        Iterator<Map<String, AttributeValue>> it = result.getItems().iterator();
+        Iterator<Map<String, AttributeValue>> it = items.iterator();
 
         BatchWriteItemRequest req = new BatchWriteItemRequest()
                 .withReturnConsumedCapacity(ReturnConsumedCapacity.TOTAL);

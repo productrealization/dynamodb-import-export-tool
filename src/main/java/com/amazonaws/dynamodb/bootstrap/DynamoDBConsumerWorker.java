@@ -14,27 +14,24 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
-
 import com.amazonaws.dynamodb.bootstrap.constants.BootstrapConstants;
 import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemRequest;
 import com.amazonaws.services.dynamodbv2.model.BatchWriteItemResult;
 import com.amazonaws.services.dynamodbv2.model.ConsumedCapacity;
-import com.amazonaws.services.dynamodbv2.model.PutRequest;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import com.google.common.util.concurrent.RateLimiter;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
+
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Callable class that is used to write a batch of items to DynamoDB with exponential backoff.
@@ -145,14 +142,6 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
                 Thread.currentThread().interrupt();
             }
         }
-    }
-
-    private String formatRequests(List<WriteRequest> requests) {
-        return requests.stream()
-                .map(WriteRequest::getPutRequest)
-                .map(PutRequest::getItem)
-                .map(item -> item.get("cnfFingerprint").getS())
-                .collect(Collectors.joining(", "));
     }
 
     private boolean notAllProcessed(BatchWriteItemResult result) {

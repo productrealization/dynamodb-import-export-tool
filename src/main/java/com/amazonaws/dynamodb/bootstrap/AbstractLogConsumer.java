@@ -14,6 +14,7 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorCompletionService;
@@ -21,7 +22,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
+import com.amazonaws.services.dynamodbv2.model.PutRequest;
 import com.amazonaws.services.dynamodbv2.model.WriteRequest;
 import org.apache.log4j.LogManager;
 import org.apache.log4j.Logger;
@@ -87,5 +90,16 @@ public abstract class AbstractLogConsumer {
         LOGGER.info(String.format("%s total batches written", totalBatchesSubmitted));
         LOGGER.info(String.format("%s total items submitted", totalItemsSubmitted));
         LOGGER.info(String.format("%s total items written", totalItemsWritten.get()));
+        final List<WriteRequest> failedRequests = failedItems.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        final String failedItemsStr = failedRequests.stream().map(this::formatRequests).collect(Collectors.joining(", "));
+        LOGGER.info(String.format("Failed items: %s", failedItemsStr));
+        LOGGER.info("Sending failed items");
+        putFailedItems(failedRequests);
     }
+
+    protected String formatRequests(WriteRequest request) {
+        return request.getPutRequest().getItem().get("cnfFingerprint").getS();
+    }
+
+    protected abstract void putFailedItems(List<WriteRequest> failedRequests);
 }
