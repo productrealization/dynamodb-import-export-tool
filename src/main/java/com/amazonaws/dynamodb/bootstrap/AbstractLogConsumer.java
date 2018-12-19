@@ -69,6 +69,17 @@ public abstract class AbstractLogConsumer {
      *            finishing their current tasks.
      */
     public void shutdown(boolean awaitTermination) {
+        LOGGER.info(String.format("%s total batches written", totalBatchesSubmitted));
+        LOGGER.info(String.format("%s total items submitted", totalItemsSubmitted));
+        LOGGER.info(String.format("%s total items written", totalItemsWritten.get()));
+        final List<WriteRequest> failedRequests = failedItems.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
+        final String failedItemsStr = failedRequests.stream().map(this::formatRequests).collect(Collectors.joining(", "));
+        LOGGER.info(String.format("Failed items: [%s]", failedItemsStr));
+        if (!failedRequests.isEmpty()) {
+            LOGGER.info("Sending failed items");
+            putFailedItems(failedRequests);
+        }
+
         if (awaitTermination) {
             boolean interrupted = false;
             threadPool.shutdown();
@@ -87,14 +98,7 @@ public abstract class AbstractLogConsumer {
         } else {
             threadPool.shutdownNow();
         }
-        LOGGER.info(String.format("%s total batches written", totalBatchesSubmitted));
-        LOGGER.info(String.format("%s total items submitted", totalItemsSubmitted));
-        LOGGER.info(String.format("%s total items written", totalItemsWritten.get()));
-        final List<WriteRequest> failedRequests = failedItems.values().stream().flatMap(Collection::stream).collect(Collectors.toList());
-        final String failedItemsStr = failedRequests.stream().map(this::formatRequests).collect(Collectors.joining(", "));
-        LOGGER.info(String.format("Failed items: %s", failedItemsStr));
-        LOGGER.info("Sending failed items");
-        putFailedItems(failedRequests);
+
     }
 
     protected String formatRequests(WriteRequest request) {
