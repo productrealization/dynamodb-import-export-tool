@@ -110,7 +110,7 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
 
                     LOGGER.warn(String.format("Request ID: %s. %s unprocessed items from batch of size %s, retry %s.",
                             requestId, unprocessedRequests.size(), writeRequests.size(), retries));
-                    LOGGER.debug(String.format("Items cnfFingerprints: [%s]", formatRequests(unprocessedRequests)));
+                    LOGGER.debug(String.format("Request ID: %s. Items cnfFingerprints: [%s]", requestId, formatRequests(unprocessedRequests)));
 
                     req.setRequestItems(unprocessedItems);
 
@@ -129,7 +129,6 @@ public class DynamoDBConsumerWorker implements Callable<Void> {
                     totalItemsWritten.addAndGet(writeRequests.size());
                     if (retries > 0) {
                         LOGGER.info(String.format("Request ID: %s. Successful after %s retries.", requestId, retries));
-                        LOGGER.debug(String.format("Items cnfFingerprints: [%s]", formatRequests(writeRequests)));
                     }
                 }
             } while (notAllProcessed(writeItemResult));
