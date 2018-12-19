@@ -14,16 +14,14 @@
  */
 package com.amazonaws.dynamodb.bootstrap;
 
+import com.amazonaws.services.dynamodbv2.model.WriteRequest;
+
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-
-import com.amazonaws.dynamodb.bootstrap.DynamoDBEntryWithSize;
-import com.amazonaws.services.dynamodbv2.model.WriteRequest;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * This class implements ILogConsumer, and when called to writeResult, it will
@@ -94,7 +92,7 @@ public class BlockingQueueConsumer extends AbstractLogConsumer {
 
     @Override
     protected void putFailedItems(List<WriteRequest> failedRequests) {
-        throw new NotImplementedException();
+        
     }
 
 }
